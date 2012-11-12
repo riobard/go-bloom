@@ -1,0 +1,4 @@
+Gobloom
+====
+
+A Bloom filter in Go
