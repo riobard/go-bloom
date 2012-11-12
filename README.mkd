@@ -1,4 +1,18 @@
 Gobloom
 ====
 
-A Bloom filter in Go
+A standard [Bloom filter][bloom] in [Go][golang] using [FNV-1a][fnv1a] hashing.
+
+
+Usage
+----
+
+    bf := gobloom.New(8000000, 5)   // 8 megabits, 5 hashes
+    bf.Add([]byte("hello"))
+    bf.Test([]byte("hello"))    // true, might be false positive
+    bf.Test([]byte("world"))    // false (for sure)
+
+
+[bloom]: http://en.wikipedia.org/wiki/Bloom_filter "Bloom Filter in Wikipedia"
+[golang]: http://golang.org/ "The Go Programming Language"
+[fnv1a]: http://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function#FNV-1a_hash
