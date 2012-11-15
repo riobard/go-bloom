@@ -1,7 +1,8 @@
 Gobloom
 ====
 
-A standard [Bloom filter][bloom] in [Go][golang] using [FNV-1a][fnv1a] hashing.
+A standard [Bloom filter][bloom] in [Go][golang] using double hashing with
+[FNV-1/FNV-1a][fnv].
 
 
 Usage
@@ -15,4 +16,4 @@ Usage
 
 [bloom]: http://en.wikipedia.org/wiki/Bloom_filter "Bloom Filter in Wikipedia"
 [golang]: http://golang.org/ "The Go Programming Language"
-[fnv1a]: http://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function#FNV-1a_hash
+[fnv]: http://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
