@@ -18,6 +18,7 @@ type BloomFilter struct {
 	set []word
 	k   uint64
 	h   hash.Hash64
+	idx []uint64
 }
 
 // Create a Bloom filter with m bits and k hashes
@@ -31,25 +32,31 @@ func New(m, k uint64) *BloomFilter {
 		set: make([]word, l),
 		k:   k,
 		h:   fnv.New64a(),
+		idx: make([]uint64, k),
 	}
+}
+
+func (self *BloomFilter) index(b []byte) []uint64 {
+	self.h.Reset()
+	self.h.Write(b)
+	h := self.h.Sum64()
+	h0, h1 := h&0xFFFFFFFF, h>>32
+	for i := uint64(0); i < uint64(self.k); i++ {
+		self.idx[i] = (h0 + i*h1) % self.m
+	}
+	return self.idx
 }
 
 // Add an element to the Bloom filter
 func (self *BloomFilter) Add(b []byte) {
-	h := self.hash(b)
-	h0, h1 := h&0xFFFFFFFF, h>>32
-	for i := uint64(0); i < self.k; i++ {
-		off := (h0 + i*h1) % self.m
+	for _, off := range self.index(b) {
 		self.set[off>>logWordSize] |= 1 << (off & (wordSize - 1))
 	}
 }
 
 // Test if an element is in the Bloom filter (might be false positive)
 func (self *BloomFilter) Test(b []byte) bool {
-	h := self.hash(b)
-	h0, h1 := h&0xFFFFFFFF, h>>32
-	for i := uint64(0); i < self.k; i++ {
-		off := (h0 + i*h1) % self.m
+	for _, off := range self.index(b) {
 		if 0 == self.set[off>>logWordSize]&(1<<(off&(wordSize-1))) {
 			return false
 		}
@@ -59,13 +66,6 @@ func (self *BloomFilter) Test(b []byte) bool {
 
 func (self *BloomFilter) Clear() {
 	self.set = make([]word, len(self.set))
-}
-
-func (self *BloomFilter) hash(b []byte) uint64 {
-	self.h.Write(b)
-	r := self.h.Sum64()
-	self.h.Reset()
-	return r
 }
 
 func (self *BloomFilter) FPR(n uint64) float64 {

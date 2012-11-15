@@ -24,7 +24,7 @@ func TestFalseRate(t *testing.T) {
 	bf := New(10000000, 5)
 	t.Logf("%d", len(bf.set))
 	var buf []byte
-	for i := 0; i < 1000000; i++ {
+	for i := 0; i < 1000000; i += 2 {
 		buf = make([]byte, 8)
 		n := binary.PutVarint(buf, int64(i))
 		if n == 0 {
@@ -34,7 +34,7 @@ func TestFalseRate(t *testing.T) {
 	}
 
 	// count false negative: should be none
-	for i := 0; i < 1000000; i++ {
+	for i := 0; i < 1000000; i += 2 {
 		buf = make([]byte, 8)
 		binary.PutVarint(buf, int64(i))
 		if !bf.Test(buf) {
@@ -44,9 +44,9 @@ func TestFalseRate(t *testing.T) {
 
 	// count false positive
 	fp := 0
-	for i := 0; i < 1000000; i++ {
+	for i := 1; i < 1000000; i += 2 {
 		buf = make([]byte, 8)
-		binary.PutVarint(buf, int64(-i))
+		binary.PutVarint(buf, int64(i))
 		if bf.Test(buf) {
 			fp++
 		}
