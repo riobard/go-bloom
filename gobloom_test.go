@@ -10,9 +10,9 @@ func ExampleFPR(t *testing.T) {
 		n := 1e6
 		m := float64(b) * n
 		for k := 1; k < 9; k++ {
-			kOpt := bestK(m, n)
-			fprOpt := fpr(m, n, kOpt)
-			fprK := fpr(m, n, float64(k))
+			kOpt := BestK(m, n)
+			fprOpt := FPR(m, n, kOpt)
+			fprK := FPR(m, n, float64(k))
 			t.Logf("m/n = %d, k* = %.1f, fpr(k*) = %6.2f%%, fpr(k=%d) = %6.2f%%",
 				b, kOpt, fprOpt*100, k, fprK*100)
 		}
@@ -22,7 +22,6 @@ func ExampleFPR(t *testing.T) {
 
 func TestFalseRate(t *testing.T) {
 	bf := New(10000000, 5)
-	t.Logf("%d", len(bf.set))
 	for i := 0; i < 1000000; i += 2 {
 		buf := make([]byte, 8)
 		n := binary.PutVarint(buf, int64(i))

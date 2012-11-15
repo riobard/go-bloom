@@ -13,7 +13,14 @@ const (
 
 type word uint64
 
-type BloomFilter struct {
+type BloomFilter interface {
+	Add(b []byte)
+	Test(b []byte) bool
+	Clear()
+	FPR(n uint64) float64
+}
+
+type standardBloomFilter struct {
 	m   uint64
 	set []word
 	k   uint64
@@ -22,8 +29,8 @@ type BloomFilter struct {
 	idx []uint64
 }
 
-// Create a Bloom filter with m bits and k hashes
-func New(m, k uint64) *BloomFilter {
+// Create a standard Bloom filter with m bits and k hashes
+func New(m, k uint64) BloomFilter {
 	// NOTE: m cannot be greater than 2^38 (256GB) due to Go 1.0's limition of
 	// int being only 32-bit even on 64-bit machines. Go 1.1 is supposed to allow
 	// 64-bit in on 64-bit machine, which will make this problem disappear. 
@@ -35,7 +42,7 @@ func New(m, k uint64) *BloomFilter {
 	if l == 0 {
 		l = 1
 	}
-	return &BloomFilter{
+	return &standardBloomFilter{
 		m:   m,
 		set: make([]word, l),
 		k:   k,
@@ -46,7 +53,7 @@ func New(m, k uint64) *BloomFilter {
 }
 
 // Calculate the k slots in m to set/check
-func (self *BloomFilter) index(b []byte) []uint64 {
+func (self *standardBloomFilter) index(b []byte) []uint64 {
 	// Use enhanced double hashing technique based on this paper from
 	// http://www.ccs.neu.edu/home/pete/research/bloom-filters-verification.html
 	self.hx.Reset()
@@ -65,14 +72,14 @@ func (self *BloomFilter) index(b []byte) []uint64 {
 }
 
 // Add an element to the Bloom filter
-func (self *BloomFilter) Add(b []byte) {
+func (self *standardBloomFilter) Add(b []byte) {
 	for _, off := range self.index(b) {
 		self.set[off>>logWordSize] |= 1 << (off & (wordSize - 1))
 	}
 }
 
 // Test if an element is in the Bloom filter (might be false positive)
-func (self *BloomFilter) Test(b []byte) bool {
+func (self *standardBloomFilter) Test(b []byte) bool {
 	for _, off := range self.index(b) {
 		if 0 == self.set[off>>logWordSize]&(1<<(off&(wordSize-1))) {
 			return false
@@ -81,20 +88,20 @@ func (self *BloomFilter) Test(b []byte) bool {
 	return true
 }
 
-func (self *BloomFilter) Clear() {
+func (self *standardBloomFilter) Clear() {
 	self.set = make([]word, len(self.set))
 }
 
-func (self *BloomFilter) FPR(n uint64) float64 {
-	return fpr(float64(self.m), float64(n), float64(self.k))
+func (self *standardBloomFilter) FPR(n uint64) float64 {
+	return FPR(float64(self.m), float64(n), float64(self.k))
 }
 
 // Optimal number of hashes
-func bestK(m, n float64) float64 {
+func BestK(m, n float64) float64 {
 	return math.Ln2 * m / n
 }
 
 // Calculate the approximation of false positive rate
-func fpr(m, n, k float64) float64 {
+func FPR(m, n, k float64) float64 {
 	return math.Pow((1 - math.Pow(math.E, -k*n/m)), k)
 }
