@@ -17,12 +17,20 @@ type BloomFilter struct {
 	m   uint64
 	set []word
 	k   uint64
-	h   hash.Hash64
+	hx  hash.Hash64
+	hy  hash.Hash64
 	idx []uint64
 }
 
 // Create a Bloom filter with m bits and k hashes
 func New(m, k uint64) *BloomFilter {
+	// NOTE: m cannot be greater than 2^38 (256GB) due to Go 1.0's limition of
+	// int being only 32-bit even on 64-bit machines. Go 1.1 is supposed to allow
+	// 64-bit in on 64-bit machine, which will make this problem disappear. 
+	if m > (1<<38 - 1) {
+		panic("m overflows")
+	}
+
 	l := (m + (wordSize - 1)) >> logWordSize
 	if l == 0 {
 		l = 1
@@ -31,18 +39,27 @@ func New(m, k uint64) *BloomFilter {
 		m:   m,
 		set: make([]word, l),
 		k:   k,
-		h:   fnv.New64a(),
+		hx:  fnv.New64a(),
+		hy:  fnv.New64(),
 		idx: make([]uint64, k),
 	}
 }
 
+// Calculate the k slots in m to set/check
 func (self *BloomFilter) index(b []byte) []uint64 {
-	self.h.Reset()
-	self.h.Write(b)
-	h := self.h.Sum64()
-	h0, h1 := h&0xFFFFFFFF, h>>32
+	// Use enhanced double hashing technique based on this paper from
+	// http://www.ccs.neu.edu/home/pete/research/bloom-filters-verification.html
+	self.hx.Reset()
+	self.hy.Reset()
+	self.hx.Write(b)
+	self.hy.Write(b)
+	x := self.hx.Sum64()
+	y := self.hy.Sum64()
+
 	for i := uint64(0); i < uint64(self.k); i++ {
-		self.idx[i] = (h0 + i*h1) % self.m
+		self.idx[i] = x % self.m
+		x += y
+		y += i
 	}
 	return self.idx
 }
