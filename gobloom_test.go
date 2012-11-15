@@ -22,10 +22,8 @@ func ExampleFPR(t *testing.T) {
 
 func TestFalseRate(t *testing.T) {
 	bf := New(10000000, 5)
-	t.Logf("%d", len(bf.set))
-	var buf []byte
-	for i := 0; i < 1000000; i++ {
-		buf = make([]byte, 8)
+	for i := 0; i < 1000000; i += 2 {
+		buf := make([]byte, 8)
 		n := binary.PutVarint(buf, int64(i))
 		if n == 0 {
 			t.Fatalf("Encoding failed")
@@ -34,8 +32,8 @@ func TestFalseRate(t *testing.T) {
 	}
 
 	// count false negative: should be none
-	for i := 0; i < 1000000; i++ {
-		buf = make([]byte, 8)
+	for i := 0; i < 1000000; i += 2 {
+		buf := make([]byte, 8)
 		binary.PutVarint(buf, int64(i))
 		if !bf.Test(buf) {
 			t.Fatalf("False negative occurred")
@@ -44,9 +42,9 @@ func TestFalseRate(t *testing.T) {
 
 	// count false positive
 	fp := 0
-	for i := 0; i < 1000000; i++ {
-		buf = make([]byte, 8)
-		binary.PutVarint(buf, int64(-i))
+	for i := 1; i < 1000000; i += 2 {
+		buf := make([]byte, 8)
+		binary.PutVarint(buf, int64(i))
 		if bf.Test(buf) {
 			fp++
 		}
