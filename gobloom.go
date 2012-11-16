@@ -1,9 +1,9 @@
 package gobloom
 
 import (
+	"hash"
 	"hash/fnv"
 	"math"
-	"sync"
 )
 
 const (
@@ -21,10 +21,11 @@ type BloomFilter interface {
 }
 
 type standardBloomFilter struct {
-	sync.RWMutex
 	m   uint64
 	set []word
 	k   uint64
+	hx  hash.Hash64
+	hy  hash.Hash64
 }
 
 // Create a standard Bloom filter with m bits and k hashes
@@ -44,53 +45,65 @@ func New(m, k uint64) BloomFilter {
 		m:   m,
 		set: make([]word, l),
 		k:   k,
+		hx:  fnv.New64a(),
+		hy:  fnv.New64(),
 	}
-}
-
-// Calculate the k slots in m to set/check
-func (self *standardBloomFilter) index(b []byte) []uint64 {
-	// Use enhanced double hashing technique based on this paper from
-	// http://www.ccs.neu.edu/home/pete/research/bloom-filters-verification.html
-	hx := fnv.New64a()
-	hy := fnv.New64()
-	hx.Write(b)
-	hy.Write(b)
-	x := hx.Sum64()
-	y := hy.Sum64()
-
-	idx := make([]uint64, self.k)
-	for i := uint64(0); i < uint64(self.k); i++ {
-		idx[i] = x % self.m
-		x += y
-		y += i
-	}
-	return idx
 }
 
 // Add an element to the Bloom filter
 func (self *standardBloomFilter) Add(b []byte) {
-	self.Lock()
-	defer self.Unlock()
-	for _, off := range self.index(b) {
+	// Use enhanced double hashing technique based on this paper from
+	// http://www.ccs.neu.edu/home/pete/research/bloom-filters-verification.html
+	var err error
+
+	self.hx.Reset()
+	if _, err = self.hx.Write(b); err != nil {
+		panic(err)
+	}
+	x := self.hx.Sum64()
+
+	self.hy.Reset()
+	if _, err = self.hy.Write(b); err != nil {
+		panic(err)
+	}
+	y := self.hy.Sum64()
+
+	for i := uint64(0); i < uint64(self.k); i++ {
+		off := x % self.m
 		self.set[off>>logWordSize] |= 1 << (off & (wordSize - 1))
+		x += y
+		y += i
 	}
 }
 
 // Test if an element is in the Bloom filter (might be false positive)
 func (self *standardBloomFilter) Test(b []byte) bool {
-	self.RLock()
-	defer self.RUnlock()
-	for _, off := range self.index(b) {
+	var err error
+
+	self.hx.Reset()
+	if _, err = self.hx.Write(b); err != nil {
+		panic(err)
+	}
+	x := self.hx.Sum64()
+
+	self.hy.Reset()
+	if _, err = self.hy.Write(b); err != nil {
+		panic(err)
+	}
+	y := self.hy.Sum64()
+
+	for i := uint64(0); i < uint64(self.k); i++ {
+		off := x % self.m
 		if 0 == self.set[off>>logWordSize]&(1<<(off&(wordSize-1))) {
 			return false
 		}
+		x += y
+		y += i
 	}
 	return true
 }
 
 func (self *standardBloomFilter) Clear() {
-	self.Lock()
-	defer self.Unlock()
 	self.set = make([]word, len(self.set))
 }
 
