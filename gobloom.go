@@ -1,3 +1,6 @@
+/*
+A standard Bloom filter in Go using double hashing with FNV-1/FNV-1a.
+*/
 package gobloom
 
 import (
@@ -32,7 +35,7 @@ type standardBloomFilter struct {
 func New(m, k uint64) BloomFilter {
 	// NOTE: m cannot be greater than 2^38 (256GB) due to Go 1.0's limition of
 	// int being only 32-bit even on 64-bit machines. Go 1.1 is supposed to allow
-	// 64-bit in on 64-bit machine, which will make this problem disappear. 
+	// 64-bit in on 64-bit machine, which will make this problem disappear.
 	if m > (1<<38 - 1) {
 		panic("m overflows")
 	}
