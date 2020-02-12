@@ -2,6 +2,7 @@ package bloom
 
 import (
 	"encoding/binary"
+	"fmt"
 	"hash/fnv"
 	"testing"
 )
@@ -16,29 +17,45 @@ func doubleFNV(b []byte) (uint64, uint64) {
 	return x, y
 }
 
-func TestFalsePositive(t *testing.T) {
-	const n = 1e6
-	bf := New(n, 1e-4, doubleFNV)
+func TestClassicFilter_Test(t *testing.T) {
+	bf := New(1e6, 1e-4, doubleFNV)
+	buf := []byte("testing")
+	bf.Add(buf)
+	if !bf.Test(buf) {
+		t.Fatal("Should exist in filter but got false")
+	}
+	if bf.Test([]byte("not-exists")) {
+		t.Fatal("Should missing in filter but got true")
+	}
+}
 
-	buf := make([]byte, 8)
-	for i := 0; i < n; i += 2 {
-		binary.PutVarint(buf, int64(i))
-		bf.Add(buf)
+func TestFalsePositive(t *testing.T) {
+	const (
+		n         = 1e6
+		expectFPR = 1e-4
+	)
+	bf := New(n, expectFPR, doubleFNV)
+	samples := make([][]byte, n)
+	fp := 0 // false positive count
+
+	for i := 0; i < n; i++ {
+		x := []byte(fmt.Sprint(i))
+		samples[i] = x
+		bf.Add(x)
 	}
 
-	fp := 0 // false postive count
-	for i := 1; i < n; i += 2 {
-		binary.PutVarint(buf, int64(i))
-		if bf.Test(buf) {
+	for _, x := range samples {
+		if !bf.Test(x) {
 			fp++
 		}
 	}
 	fpr := float64(fp) / n
-	t.Logf("FP = %d, FPR = %.4f%%", fp, fpr*100)
+	t.Logf("Samples = %d, FP = %d, FPR = %.4f%%", int(n), fp, fpr*100)
 }
 
 func BenchmarkAdd(b *testing.B) {
 	b.StopTimer()
+	b.ReportAllocs()
 	bf := New(1e6, 1e-4, doubleFNV)
 	buf := make([]byte, 20)
 	b.StartTimer()
@@ -50,6 +67,7 @@ func BenchmarkAdd(b *testing.B) {
 
 func BenchmarkTest(b *testing.B) {
 	b.StopTimer()
+	b.ReportAllocs()
 	bf := New(1e6, 1e-4, doubleFNV)
 	buf := make([]byte, 20)
 	b.StartTimer()
