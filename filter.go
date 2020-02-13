@@ -28,10 +28,14 @@ func New(n int, p float64, h func([]byte) (uint64, uint64)) Filter {
 	return &classicFilter{b: make([]byte, int(m/8)), k: int(k), h: h}
 }
 
+func (f *classicFilter) getOffset(x, y uint64, i int) uint64 {
+	return (x + uint64(i)*y) % (8 * uint64(len(f.b)))
+}
+
 func (f *classicFilter) Add(b []byte) {
 	x, y := f.h(b)
 	for i := 0; i < f.k; i++ {
-		offset := (x + uint64(i)*y) % (8 * uint64(len(f.b)))
+		offset := f.getOffset(x, y, i)
 		f.b[offset/8] |= 1 << (offset % 8)
 	}
 }
@@ -39,8 +43,8 @@ func (f *classicFilter) Add(b []byte) {
 func (f *classicFilter) Test(b []byte) bool {
 	x, y := f.h(b)
 	for i := 0; i < f.k; i++ {
-		offset := (x + uint64(i)*y) % (8 * uint64(len(f.b)))
-		if f.b[offset/8]&1<<(offset%8) == 0 {
+		offset := f.getOffset(x, y, i)
+		if f.b[offset/8]&(1<<(offset%8)) == 0 {
 			return false
 		}
 	}
