@@ -23,7 +23,7 @@ type classicFilter struct {
 // New creates a classic Bloom Filter that is optimal for n entries and false positive rate of p.
 // h is a double hash that takes an entry and returns two different hashes.
 func New(n int, p float64, h func([]byte) (uint64, uint64)) Filter {
-	k := -math.Log(p) * math.Log2E   // number of hashes (Simplified version of shannon entropy formula)
+	k := -math.Log(p) * math.Log2E   // number of hashes (Simplified version of shannon entropy formula H(X) = -Σ[ p(x) * log2(p(x)) ])
 	m := float64(n) * k * math.Log2E // number of bits
 	return &classicFilter{b: make([]byte, int(m/8)), k: int(k), h: h}
 }
